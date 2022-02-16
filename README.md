@@ -1,1 +1,1 @@
-# CS460
+# CS460 PhotoShare Assignment
