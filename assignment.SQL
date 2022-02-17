@@ -1,22 +1,22 @@
 CREATE TABLE PUser(
 	uid INTEGER,
-	fname CHAR(20),
-	lname CHAR(20),
-	email CHAR(26),
-	dob DATE,
+	fname CHAR(20) 	IS NOT NULL,
+	lname CHAR(20) 	IS NOT NULL,
+	email CHAR(26) 	IS NOT NULL UNIQUE,
+	dob DATE 		IS NOT NULL,
+	pw CHAR(26) 	IS NOT NULL,
 	htown CHAR(20),
 	gender CHAR(20),
-	pw CHAR(26),
 	PRIMARY KEY (uid)
-);
+ );
 
 CREATE TABLE Friends{
 	uid INTEGER,
 	fid INTEGER 
-	CONSTRAINT nonself (uid != fid),
 	PRIMARY KEY (uid, fid)
-	FOREIGN KEY (uid) REFERENCES Users (uid),
-);
+  	FOREIGN KEY (uid) REFERENCES Users (uid),
+  	CHECK(uid <> fid)
+ );
 
 CREATE TABLE Cmnt(
 	cid INTEGER,
@@ -30,10 +30,11 @@ CREATE TABLE Cmnt(
 
 CREATE TABLE Commented(
 	pid INTEGER,
-	cid INTEGER,
-	PRIMARY KEY(pid, cid),
-	FOREIGN KEY (pid) REFERENCES Photo (pid),
-	FOREIGN KEY (cid) REFERENCES Cmnt (cid)
+  	cid INTEGER,
+  	PRIMARY KEY(pid, cid),
+  	FOREIGN KEY (pid) REFERENCES Photo (pid) ON DELETE CASCADE,
+  	FOREIGN KEY (cid) REFERENCES Cmnt (cid),
+  	CHECK( (SELECT p.uid FROM Puser pu) <> (SELECT c.uid FROM Cmnt c))
 );
 
 CREATE TABLE Tag(
@@ -60,23 +61,23 @@ CREATE TABLE Holds(
 	aid INTEGER,
 	pid INTEGER,
 	PRIMARY KEY(aid, pid),
-	FOREIGN KEY (aid) REFERENCES Album (aid),
+	FOREIGN KEY (aid) REFERENCES Album (aid) ON DELETE CASCADE,
 	FOREIGN KEY (pid) REFERENCES Photo (pid)
 );
 
 CREATE TABLE Album(
 	aid INTEGER,
-	name CHAR(20),
+	aname CHAR(20),
 	uid INTEGER,
 	doc DATE,
 	PRIMARY KEY (aid),
-	FOREIGN KEY (uid) REFERENCES PUser (uid)
+	FOREIGN KEY (uid) REFERENCES PUser (uid) ON DELETE CASCADE
 );
 
 CREATE TABLE Owns(
 	uid INTEGER,
 	aid INTEGER,
-	PRIMARY KEY(uid, aid),
-	FOREIGN KEY (uid) REFERENCES PUser (uid),
+	PRIMARY KEY (uid, aid),
+	FOREIGN KEY (uid) REFERENCES PUser (uid) ON DELETE CASCADE,
 	FOREIGN KEY (aid) REFERENCES Album (aid)
 );
