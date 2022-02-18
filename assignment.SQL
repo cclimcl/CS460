@@ -15,8 +15,14 @@ CREATE TABLE Friends{
 	fid INTEGER 
 	PRIMARY KEY (uid, fid)
   	FOREIGN KEY (uid) REFERENCES Users (uid),
-  	CHECK(uid <> fid)
  );
+ 
+CREATE ASSERTION nonSelfFriend
+CHECK (NOT EXISTS 
+	(SELECT F.uid, F.fid 
+	FROM Friends F
+	WHERE f.uid = F.fid)
+);
 
 CREATE TABLE Cmnt(
 	cid INTEGER,
@@ -33,8 +39,14 @@ CREATE TABLE Commented(
   	cid INTEGER,
   	PRIMARY KEY(pid, cid),
   	FOREIGN KEY (pid) REFERENCES Photo (pid) ON DELETE CASCADE,
-  	FOREIGN KEY (cid) REFERENCES Cmnt (cid),
-  	CHECK( (SELECT p.uid FROM Puser pu) <> (SELECT c.uid FROM Cmnt c))
+  	FOREIGN KEY (cid) REFERENCES Cmnt (cid)
+);
+
+CREATE ASSERTION nonOwnerComment
+CHECK
+((SELECT p.uid FROM Puser pu) 
+ <> 
+ (SELECT c.uid FROM Cmnt c)
 );
 
 CREATE TABLE Tag(
