@@ -13,9 +13,15 @@ import flask
 from flask import Flask, Response, request, render_template, redirect, url_for
 from flaskext.mysql import MySQL
 import flask_login
+import datetime
 
 #for image uploading
 import os, base64
+
+#for getting current date
+def getDate():
+	return datetime.date.today()
+
 
 mysql = MySQL()
 app = Flask(__name__)
@@ -23,7 +29,7 @@ app.secret_key = 'super secret string'  # Change this!
 
 #These will need to be changed according to your creditionals
 app.config['MYSQL_DATABASE_USER'] = 'root'
-app.config['MYSQL_DATABASE_PASSWORD'] = 'chrwllg2MIT'
+app.config['MYSQL_DATABASE_PASSWORD'] = 'password'
 app.config['MYSQL_DATABASE_DB'] = 'photoshare'
 app.config['MYSQL_DATABASE_HOST'] = 'localhost'
 mysql.init_app(app)
@@ -174,7 +180,27 @@ def isEmailUnique(email):
 def protected():
 	return render_template('hello.html', name=flask_login.current_user.id, message="Here's your profile")
 
+#---------------------begin album creating code---------------------
+@app.route('/newalbum', methods=['GET', 'POST'])
+@flask_login.login_required
+def create_album():
+	uid = getUserIdFromEmail(flask_login.current_user.id)
+	if request.method == 'POST':
+		time = getDate()
+		aname = request.form.get('aname')
+		cursor = conn.cursor()
+		cursor.execute('''INSERT INTO Albums (album_name, user_id, doc) VALUES (%s, %s, %s )''', (aname, uid, time))
+		conn.commit()
+		return render_template('hello.html', name=flask_login.current_user.id, message='Album created!', photos=getUsersPhotos(uid), base64=base64)
+	else:
+		return render_template('newalbum.html')
+
 #begin photo uploading code
+def getUsersAlbums(uid):
+	cursor = conn.cursor()
+	cursor.execute("SELECT album_id, album_name, user_id, doc FROM Albums WHERE user_id = %s", uid)
+	return cursor.fetchall() #NOTE return a list of tuples, [(album_id, album_name, user_id, doc), ...]
+
 # photos uploaded using base64 encoding so they can be directly embeded in HTML
 ALLOWED_EXTENSIONS = set(['png', 'jpg', 'jpeg', 'gif'])
 def allowed_file(filename):
@@ -183,18 +209,22 @@ def allowed_file(filename):
 @app.route('/upload', methods=['GET', 'POST'])
 @flask_login.login_required
 def upload_file():
+	uid = getUserIdFromEmail(flask_login.current_user.id)
 	if request.method == 'POST':
-		uid = getUserIdFromEmail(flask_login.current_user.id)
-		imgfile = request.files['photo']
-		caption = request.form.get('caption')
-		photo_data =imgfile.read()
-		cursor = conn.cursor()
-		cursor.execute('''INSERT INTO Pictures (imgdata, user_id, caption) VALUES (%s, %s, %s )''', (photo_data, uid, caption))
-		conn.commit()
-		return render_template('hello.html', name=flask_login.current_user.id, message='Photo uploaded!', photos=getUsersPhotos(uid), base64=base64)
+		try:
+			imgfile = request.files['photo']
+			caption = request.form.get('caption')
+			aid = request.form.get('album')
+			photo_data =imgfile.read()
+			cursor = conn.cursor()
+			cursor.execute('''INSERT INTO Pictures (imgdata, user_id, caption, album_id) VALUES (%s, %s, %s, %s )''', (photo_data, uid, caption, aid))
+			conn.commit()
+			return render_template('hello.html', name=flask_login.current_user.id, message='Photo uploaded!', photos=getUsersPhotos(uid), base64=base64)
+		except:
+			return render_template('upload.html', albums=getUsersAlbums(uid))
 	#The method is GET so we return a  HTML form to upload the a photo.
 	else:
-		return render_template('upload.html')
+		return render_template('upload.html', albums=getUsersAlbums(uid))
 #end photo uploading code
 
 
