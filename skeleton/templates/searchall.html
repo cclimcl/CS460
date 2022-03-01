@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+
+<h4>Welcome to Photoshare</h4>
+
+{% if uid is none %}
+  <a href='/login'>login!</a>
+{% else %}
+  <p> Go to <a href='/profile'>profile?</a></p>
+{% endif %}
+
+{% if albums %}
+<h2>Search Albums</h2>
+    <ul>
+    {% for (aid, aname, _,_) in albums %}
+
+        <li>{{aname}}</li>
+        <form method="post" enctype="multipart/form-data" action="/">
+          <input type="hidden"  name="aid" value={{aid}}/>
+          <input type="submit" value="View"/>
+        </form>
+    {% endfor %}
+    </ul>
+{% endif %}
+
+{% if photos %}
+<h2>Search Photos</h2>
+    <ul>
+    {% for (pid, uid, data, caption, loc, aid) in photos %}
+        <div style="float:left";>
+            <li>{{caption}}<br>
+            <img src='data:image/jpg;base64, {{ base64.b64encode(data).decode("ascii") }}'/></li>
+        </div>
+    {% endfor %}
+{% endif %}
