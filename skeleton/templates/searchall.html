@@ -1,6 +1,6 @@
 <!DOCTYPE html>
-
-<h4>Welcome to Photoshare</h4>
+<h1>Welcome to Photoshare</h1>
+<h3>{{message}}</h3>
 
 {% if uid is none %}
   <a href='/login'>login!</a>
@@ -9,7 +9,7 @@
 {% endif %}
 
 {% if albums %}
-<h2>Search Albums</h2>
+<h2>Browse Albums</h2>
     <ul>
     {% for (aid, aname, _,_) in albums %}
 
@@ -23,13 +23,23 @@
 {% endif %}
 
 {% if photos %}
-<h2>Search Photos by Tag</h2>
-<form method="post" enctype="multipart/form-data" action="/">
+<div>
+  <h2>Search All Photos by Tag</h2>
+  <form method="post" enctype="multipart/form-data" action="/">
     <input type="search" name="tag"/>
 </form>
+</div>
+{% if uid %}
+<div>
+  <h2>Search Your Photos by Tag</h3>
+  <form method="post" action="/">
+    <input type="search" name="mytagsearch"/>
+  </form>
+</div>
+{% endif %}
     <ul>
     {% for (pid, uid, data, caption, loc, aid) in photos %}
-        <div style="float:left";>
+        <div style="float:left;">
             <li>{{caption}}<br>
             <img src='data:image/jpg;base64, {{ base64.b64encode(data).decode("ascii") }}'/></li>
         </div>

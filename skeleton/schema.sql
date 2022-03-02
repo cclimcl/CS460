@@ -41,3 +41,17 @@ CREATE TABLE Tag(
   FOREIGN KEY (picture_id) REFERENCES Pictures (picture_id)
 	ON DELETE CASCADE
  );
+
+DROP TABLE Tag;
+
+INSERT INTO Users (email, password) VALUES ('test@bu.edu', 'test');
+INSERT INTO Users (email, password) VALUES ('test1@bu.edu', 'test');
+SELECT * FROM Users;
+SELECT P.picture_id, P.user_id, P.imgdata, P.caption, P.loc, P.album_id 
+	FROM Pictures P, Tag T 
+    WHERE T.word = 'meg' AND T.picture_id = P.picture_id AND P.user_id='3';
+SELECT * FROM Pictures;
+SELECT * FROM Tag T;
+SELECT P.picture_id, P.user_id, P.imgdata, P.caption, P.loc, P.album_id FROM Pictures P, Tag T WHERE T.word = 'jo' AND T.picture_id = P.picture_id;
+INSERT INTO Tag (word, picture_id) VALUES ('jo', '3');
+SELECT P.picture_id, P.user_id, P.imgdata, P.caption, P.loc, P.album_id FROM Pictures P, Tag T WHERE T.word = 'jo' AND T.picture_id

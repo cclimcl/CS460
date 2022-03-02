@@ -210,6 +210,7 @@ def getUsersAlbums(uid):
 	cursor.execute('''SELECT album_id, album_name, user_id, doc FROM Albums WHERE user_id = %s''', uid)
 	return cursor.fetchall() #NOTE return a list of tuples, [(album_id, album_name, user_id, doc), ...]
 
+#add tag to photo
 @app.route('/addtag', methods=['POST'])
 @flask_login.login_required
 def add_tag():
@@ -230,6 +231,7 @@ def add_tag():
 		return render_template('hello.html', name = flask_login.current_user.id, message='Tag was not added', 
 									albums = getUsersAlbums(uid), photos = getUsersPhotos(uid), base64=base64)
 
+#delete stuff
 @app.route('/mycontent', methods=['POST'])
 @flask_login.login_required
 def show_content():
@@ -250,15 +252,8 @@ def show_content():
 		conn.commit()
 		return render_template('hello.html', name = flask_login.current_user.id, message='Album Deleted!', 
 								albums = getUsersAlbums(uid), photos = getUsersPhotos(uid), base64=base64)
-	#add tag
-	# if(request.form.get('tags')):
-	# 	tags = request.form.get('tags')
-	# 	pid = request.form.get('pid')
-	# 	tags = tags.split(',')
-	# 	for tag in tags:
-	# 		addTag(tag, pid)
-	# 	return render_template('hello.html', name = flask_login.current_user.id, message='Tag Added!', albums = getUsersAlbums(uid), photos = getUsersPhotos(uid), base64=base64)
-	return render_template('hello.html', name = flask_login.current_user.id, message='Here is your content', albums = getUsersAlbums(uid), photos = getUsersPhotos(uid), base64=base64)
+	return render_template('hello.html', name = flask_login.current_user.id, message='Here is your content', 
+								albums = getUsersAlbums(uid), photos = getUsersPhotos(uid), base64=base64)
 	
 #-----------------------------upload-----------------------------
 
@@ -293,25 +288,34 @@ def upload_file():
 #------------------------------Search------------------------------
 def getAllAlbums():
 	cursor = conn.cursor()
-	cursor.execute("SELECT album_id, album_name, user_id, doc FROM Albums")
+	cursor.execute('''SELECT * FROM Albums''')
 	return cursor.fetchall() #NOTE return a list of tuples, [(album_id, album_name, user_id, doc), ...]
 
 def getAllPhotos():
 	cursor = conn.cursor()
-	cursor.execute("SELECT picture_id, user_id, imgdata, caption, loc, album_id FROM Pictures")
+	cursor.execute('''SELECT * FROM Pictures''')
 	return cursor.fetchall() #NOTE return a list of tuples, [(picture_id, user_id, imgdata, caption, loc, album_id), ...]
 
 def getPhotos_byAlbum(aid):
 	cursor = conn.cursor()
-	cursor.execute("SELECT picture_id, user_id, imgdata, caption, loc, album_id FROM Pictures WHERE album_id = %s", aid)
+	cursor.execute('''SELECT * FROM Pictures WHERE album_id = %s''', aid)
 	return cursor.fetchall() #NOTE return a list of tuples, [(picture_id, user_id, imgdata, caption, loc, album_id), ...]
 
-def getPhotos_byTag(tag):
-	cursor = conn.cursor()
-	cursor.execute("SELECT P.picture_id, P.user_id, P.imgdata, P.caption, P.loc, P.album_id FROM Pictures P, Tag T WHERE T.word = %s AND T.picture_id = P.picture_id", tag)
-	return cursor.fetchall() #NOTE return a list of tuples, [(picture_id, user_id, imgdata, caption, loc, album_id), ...]
+def getPhotos_byTag(tag, onlyusers):
+	if onlyusers==0:
+		cursor = conn.cursor()
+		cursor.execute('''SELECT P.picture_id, P.user_id, P.imgdata, P.caption, P.loc, P.album_id FROM Pictures P, Tag T 
+						WHERE T.word = %s AND T.picture_id = P.picture_id''', tag)
+		return cursor.fetchall() #NOTE return a list of tuples, [(picture_id, user_id, imgdata, caption, loc, album_id), ...]
+	else:
+		uid=getUserIdFromEmail(flask_login.current_user.id)
+		cursor = conn.cursor() 
+		cursor.execute("SELECT P.picture_id, P.user_id, P.imgdata, P.caption, P.loc, P.album_id FROM Pictures P, Tag T \
+						WHERE P.user_id = '{0}' AND T.picture_id = P.picture_id AND T.word = '{1}'".format(uid, tag))
+		return cursor.fetchall() #NOTE return a list of tuples, [(picture_id, user_id, imgdata, caption, loc, album_id), ...]
+	
 
-#default page
+#default page/home page
 @app.route("/", methods=['GET', 'POST'])
 def hello(): #hello()
 	allphotos = getAllPhotos()
@@ -321,16 +325,23 @@ def hello(): #hello()
 	except:
 		userid = None
 	if request.method=='POST':
+		#Get photos in Album
 		if(request.form.get('aid')):
 			aid = request.form.get('aid')
 			photos = getPhotos_byAlbum(aid)
 			return render_template('searchall.html', uid=userid, photos = photos, base64=base64) 
+		#get All photos from tag
 		if(request.form.get('tag')):
 			tag=request.form.get('tag')
-			photos = getPhotos_byTag(tag)
+			photos = getPhotos_byTag(tag,0)
+			return render_template('searchall.html', uid=userid, photos = photos, base64=base64)
+		#get User photos from tag
+		if(request.form.get('mytagsearch')):
+			mytag = request.form.get('mytagsearch')
+			photos = getPhotos_byTag(mytag,1)
 			return render_template('searchall.html', uid=userid, photos = photos, base64=base64)
 		else:
-			return render_template('searchall.html', uid=userid, albums = allalbums, photos = allphotos, base64=base64)
+			return render_template('searchall.html', message = "Nothing was found for that search", uid=userid, albums = allalbums, photos = allphotos, base64=base64)
 	return render_template('searchall.html', uid=userid, albums = allalbums, photos = allphotos, base64=base64)
 	
 

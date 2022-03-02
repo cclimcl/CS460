@@ -11,7 +11,7 @@
 {% if message is none %}
   <p>You should <a href='/login'>login!</a></p>
 {% else %}
-  <p> Here is your content</a></p>
+  <p> Create new content, view, or edit the content you currently have.</a></p>
 {% endif %}
 
 <ul>
@@ -27,11 +27,11 @@
     {% for (aid, aname, _,_) in albums %}
 
         <li>{{aname}}</li>
-        <form method="post" enctype="multipart/form-data" action="/">
+        <form method="post" action="/">
           <input type="hidden"  name="aid" value={{aid}}/>
           <input type="submit" value="View"/>
         </form>
-        <form method="post" enctype="multipart/form-data" action="/mycontent">
+        <form method="post" action="/mycontent">
           <input type="hidden"  name="deletealb" value={{aid}}/>
           <input type="submit" value="Delete"/>
         </form>
