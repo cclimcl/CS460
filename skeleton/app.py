@@ -151,7 +151,7 @@ def register_user():
 		user = User()
 		user.id = email
 		flask_login.login_user(user)
-		return render_template('profileo.html', name=email, message='Account Created!')
+		return render_template('profile.html', name=email, message='Account Created!')
 	else:
 		print("couldn't find all tokens")
 		return flask.redirect(flask.url_for('register'))
@@ -180,7 +180,8 @@ def isEmailUnique(email):
 @flask_login.login_required
 def protected():
 	uid = getUserIdFromEmail(flask_login.current_user.id)
-	return render_template('hello.html', name=flask_login.current_user.id, message="Here's your profile", albums = getUsersAlbums(uid), photos = getUsersPhotos(uid), base64=base64)
+	return render_template('hello.html', name=flask_login.current_user.id, message="Here's your profile", 
+							albums = getUsersAlbums(uid), photos = getUsersPhotos(uid), base64=base64)
 
 #---------------------begin album creating code---------------------
 @app.route('/newalbum', methods=['GET', 'POST'])
@@ -193,34 +194,73 @@ def create_album():
 		cursor = conn.cursor()
 		cursor.execute('''INSERT INTO Albums (album_name, user_id, doc) VALUES (%s, %s, %s )''', (aname, uid, time))
 		conn.commit()
-		return render_template('hello.html', name=flask_login.current_user.id, message='Album created!', albums = getUsersAlbums(uid), photos=getUsersPhotos(uid), base64=base64)
+		return render_template('hello.html', name=flask_login.current_user.id, message='Album created!', 
+								albums = getUsersAlbums(uid), photos=getUsersPhotos(uid), base64=base64)
 	else:
 		return render_template('newalbum.html')
 
-#----------------------------My Content------- --------------------
-@app.route('/mycontent', methods=['GET', 'POST'])
+#----------------------------My Content----------------------------
+def insertTag(tag, pid):
+	cursor = conn.cursor()
+	cursor.execute('''INSERT INTO Tag (word, picture_id) VALUES (%s, %s)''', (tag, pid))
+	conn.commit()
+
+def getUsersAlbums(uid):
+	cursor = conn.cursor()
+	cursor.execute('''SELECT album_id, album_name, user_id, doc FROM Albums WHERE user_id = %s''', uid)
+	return cursor.fetchall() #NOTE return a list of tuples, [(album_id, album_name, user_id, doc), ...]
+
+@app.route('/addtag', methods=['POST'])
+@flask_login.login_required
+def add_tag():
+	uid = getUserIdFromEmail(flask_login.current_user.id)
+	try:
+		tags = request.form.get('tag')
+		pid = request.form.get('pid').replace('/','')
+		print(pid)
+		print(tags)
+		tags = tags.split(',')
+		print(tags)
+		for tag in tags:
+			print(tag)
+			insertTag(tag, pid)
+		return render_template('hello.html', name = flask_login.current_user.id, message='Tag Added!', 
+									albums = getUsersAlbums(uid), photos = getUsersPhotos(uid), base64=base64)
+	except:
+		return render_template('hello.html', name = flask_login.current_user.id, message='Tag was not added', 
+									albums = getUsersAlbums(uid), photos = getUsersPhotos(uid), base64=base64)
+
+@app.route('/mycontent', methods=['POST'])
 @flask_login.login_required
 def show_content():
 	uid = getUserIdFromEmail(flask_login.current_user.id)
-	if request.method == 'POST':
-		try:
-			pid = request.form.get('pid')
-			cursor = conn.cursor()
-			cursor.execute('''DELETE FROM Pictures WHERE picture_id = %s;''', pid)
-			conn.commit()
-			return render_template('hello.html', name = flask_login.current_user.id, message='Photo Deleted!', albums = getUsersAlbums(uid), photos = getUsersPhotos(uid), base64=base64)
-		except:
-			aid = request.form.get('aid')
-			cursor = conn.cursor()
-			cursor.execute('''DELETE FROM Albums WHERE album_id = %s;''', aid)
-			conn.commit()
-			return render_template('hello.html', name = flask_login.current_user.id, message='Photo Deleted!', albums = getUsersAlbums(uid), photos = getUsersPhotos(uid), base64=base64)
-
-#begin photo uploading code
-def getUsersAlbums(uid):
-	cursor = conn.cursor()
-	cursor.execute("SELECT album_id, album_name, user_id, doc FROM Albums WHERE user_id = %s", uid)
-	return cursor.fetchall() #NOTE return a list of tuples, [(album_id, album_name, user_id, doc), ...]
+		#delete photo
+	if(request.form.get('deletepic')):
+		pid = request.form.get('deletepic')
+		cursor = conn.cursor()
+		cursor.execute('''DELETE FROM Pictures WHERE picture_id = %s;''', pid)
+		conn.commit()
+		return render_template('hello.html', name = flask_login.current_user.id, message='Photo Deleted!', 
+								albums = getUsersAlbums(uid), photos = getUsersPhotos(uid), base64=base64)
+	#delete Album
+	if(request.form.get('deletealb')):
+		aid = request.form.get('deletealb')
+		cursor = conn.cursor()
+		cursor.execute('''DELETE FROM Albums WHERE album_id = %s;''', aid)
+		conn.commit()
+		return render_template('hello.html', name = flask_login.current_user.id, message='Album Deleted!', 
+								albums = getUsersAlbums(uid), photos = getUsersPhotos(uid), base64=base64)
+	#add tag
+	# if(request.form.get('tags')):
+	# 	tags = request.form.get('tags')
+	# 	pid = request.form.get('pid')
+	# 	tags = tags.split(',')
+	# 	for tag in tags:
+	# 		addTag(tag, pid)
+	# 	return render_template('hello.html', name = flask_login.current_user.id, message='Tag Added!', albums = getUsersAlbums(uid), photos = getUsersPhotos(uid), base64=base64)
+	return render_template('hello.html', name = flask_login.current_user.id, message='Here is your content', albums = getUsersAlbums(uid), photos = getUsersPhotos(uid), base64=base64)
+	
+#-----------------------------upload-----------------------------
 
 # photos uploaded using base64 encoding so they can be directly embeded in HTML
 ALLOWED_EXTENSIONS = set(['png', 'jpg', 'jpeg', 'gif'])
@@ -238,9 +278,11 @@ def upload_file():
 			aid = request.form.get('album')
 			photo_data =imgfile.read()
 			cursor = conn.cursor()
-			cursor.execute('''INSERT INTO Pictures (imgdata, user_id, caption, album_id) VALUES (%s, %s, %s, %s )''', (photo_data, uid, caption, aid))
+			cursor.execute('''INSERT INTO Pictures (imgdata, user_id, caption, album_id) VALUES (%s, %s, %s, %s )''', 
+						(photo_data, uid, caption, aid))
 			conn.commit()
-			return render_template('hello.html', name=flask_login.current_user.id, message='Photo uploaded!', photos=getUsersPhotos(uid), base64=base64)
+			return render_template('hello.html', name=flask_login.current_user.id, message='Photo uploaded!', 
+									photos=getUsersPhotos(uid), base64=base64)
 		except:
 			return render_template('upload.html', albums=getUsersAlbums(uid))
 	#The method is GET so we return a  HTML form to upload the a photo.
@@ -264,6 +306,11 @@ def getPhotos_byAlbum(aid):
 	cursor.execute("SELECT picture_id, user_id, imgdata, caption, loc, album_id FROM Pictures WHERE album_id = %s", aid)
 	return cursor.fetchall() #NOTE return a list of tuples, [(picture_id, user_id, imgdata, caption, loc, album_id), ...]
 
+def getPhotos_byTag(tag):
+	cursor = conn.cursor()
+	cursor.execute("SELECT P.picture_id, P.user_id, P.imgdata, P.caption, P.loc, P.album_id FROM Pictures P, Tag T WHERE T.word = %s AND T.picture_id = P.picture_id", tag)
+	return cursor.fetchall() #NOTE return a list of tuples, [(picture_id, user_id, imgdata, caption, loc, album_id), ...]
+
 #default page
 @app.route("/", methods=['GET', 'POST'])
 def hello(): #hello()
@@ -274,15 +321,20 @@ def hello(): #hello()
 	except:
 		userid = None
 	if request.method=='POST':
-		try:
+		if(request.form.get('aid')):
 			aid = request.form.get('aid')
 			photos = getPhotos_byAlbum(aid)
-			return render_template('searchall.html', uid=userid, photos = photos, base64=base64)	
-		except: return render_template('searchall.html', uid=userid, albums = allalbums, photos = allphotos, base64=base64)
+			return render_template('searchall.html', uid=userid, photos = photos, base64=base64) 
+		if(request.form.get('tag')):
+			tag=request.form.get('tag')
+			photos = getPhotos_byTag(tag)
+			return render_template('searchall.html', uid=userid, photos = photos, base64=base64)
+		else:
+			return render_template('searchall.html', uid=userid, albums = allalbums, photos = allphotos, base64=base64)
 	return render_template('searchall.html', uid=userid, albums = allalbums, photos = allphotos, base64=base64)
 	
 
-#TODO: change this to a non-user dependent page where they an login, search ect.
+
 
 if __name__ == "__main__":
 	#this is invoked when in the shell  you run

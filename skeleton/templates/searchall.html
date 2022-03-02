@@ -23,7 +23,10 @@
 {% endif %}
 
 {% if photos %}
-<h2>Search Photos</h2>
+<h2>Search Photos by Tag</h2>
+<form method="post" enctype="multipart/form-data" action="/">
+    <input type="search" name="tag"/>
+</form>
     <ul>
     {% for (pid, uid, data, caption, loc, aid) in photos %}
         <div style="float:left";>

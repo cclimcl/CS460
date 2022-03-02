@@ -27,8 +27,12 @@
     {% for (aid, aname, _,_) in albums %}
 
         <li>{{aname}}</li>
-        <form method="post" enctype="multipart/form-data" action="/mycontent">
+        <form method="post" enctype="multipart/form-data" action="/">
           <input type="hidden"  name="aid" value={{aid}}/>
+          <input type="submit" value="View"/>
+        </form>
+        <form method="post" enctype="multipart/form-data" action="/mycontent">
+          <input type="hidden"  name="deletealb" value={{aid}}/>
           <input type="submit" value="Delete"/>
         </form>
     {% endfor %}
@@ -38,14 +42,21 @@
 {% if photos %}
 <h2>Here are your photos</h2>
     <ul>
+      <div style="float:left";>
     {% for (data, pid, caption) in photos %}
-
         <li>{{caption}}<br>
         <img src='data:image/jpg;base64, {{ base64.b64encode(data).decode("ascii") }}'/></li>
         <form method="post" enctype="multipart/form-data" action="/mycontent">
-          <input type="hidden"  name="pid" value={{pid}}/>
+          <input type="hidden"  name="deletepic" value={{pid}}/>
           <input type="submit" value="Delete" />
         </form>
+        <form method="post" enctype="multipart/form-data" action="/addtag">
+          <label for="tag">Add tags ("tag,tag2,...")</label>
+          <input type="text" name="tag" required='true'/>
+          <input type="hidden" name="pid" value = {{pid}}/>
+          <input type="submit" value="Add" />
+        </form>
+      </div>
     {% endfor %}
     </ul>
 {% endif %}
