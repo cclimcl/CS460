@@ -69,3 +69,12 @@
     </ul>
 {% endif %}
 
+{% if friends %}
+<h2>Here are your friends</h2>
+    <ul>
+    {% for (fname, lname, email) in friends %}
+
+        <li>{{fname}} {{lname}}: {{email}}</li>
+    {% endfor %}
+    </ul>
+{% endif %}
