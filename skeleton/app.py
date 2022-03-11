@@ -71,8 +71,8 @@ def request_loader(request):
 	cursor = mysql.connect().cursor()
 	cursor.execute("SELECT password FROM Users WHERE email = '{0}'".format(email))
 	data = cursor.fetchall()
-	pwd = str(data[0][0] )
-	user.is_authenticated = request.form['password'] == pwd
+	pwd = str(data[0][0])
+	user.is_authenticated = (request.form['password'] == pwd)
 	return user
 
 '''
@@ -145,16 +145,16 @@ def register_user():
 	passed =  test and first_name and last_name and password and birth_date
 
 	if passed: # if email is unique
-		print(cursor.execute("INSERT INTO Users (first_name, last_name, email, password, birth_date, gender, hometown) VALUES ('{0}', '{1}', '{2}', '{3}', '{4}', '{5}', '{6}')".format(first_name, last_name, email, password, date_of_birth, gender, hometown)))
+		print(cursor.execute("INSERT INTO Users (first_name, last_name, email, password, birth_date, gender, hometown) VALUES ('{0}', '{1}', '{2}', '{3}', '{4}', '{5}', '{6}')".format(first_name, last_name, email, password, birth_date, gender, hometown)))
 		conn.commit()
 		#log user in
 		user = User()
-		user.id = email
+		#user.id = email
 		flask_login.login_user(user)
-		return render_template('profile.html', name=email, message='Account Created!')
+		return render_template('hello.html', name=first_name, message='Account Created!')
 	else:
 		print("couldn't find all tokens")
-		return flask.redirect(flask.url_for('register'))
+		return render_template('home.html', photos = getAllPhotos(), albums=getAllAlbums(), message='Could not create an account. Try again!', base64=base64)
 
 def getUsersPhotos(uid):
 	cursor = conn.cursor()
@@ -169,7 +169,7 @@ def getUserIdFromEmail(email):
 def isEmailUnique(email):
 	#use this to check if a email has already been registered
 	cursor = conn.cursor()
-	if cursor.execute("SELECT email  FROM Users WHERE email = '{0}'".format(email)):
+	if cursor.execute("SELECT email FROM Users WHERE email = '{0}'".format(email)):
 		#this means there are greater than zero entries with that email
 		return False
 	else:
@@ -181,26 +181,52 @@ def isEmailUnique(email):
 def protected():
 	uid = getUserIdFromEmail(flask_login.current_user.id)
 	return render_template('hello.html', name=flask_login.current_user.id, message="Here's your profile", 
-							albums = getUsersAlbums(uid), photos = getUsersPhotos(uid), base64=base64)
+							albums = getUsersAlbums(uid), photos = getUsersPhotos(uid), friends=getFriends(uid), base64=base64)
  
 # ------------------------------------ FRIENDS ------------------------------------
 # search for friend using search bar
 def getUser_byEmail(email):
 	cursor = conn.cursor()
-	cursor.execute("SELECT U.user_id, U.email FROM Users U WHERE U.email = '{0}'".format(email))
+	cursor.execute("SELECT * FROM Users U WHERE U.email = '{0}'".format(email))
 	return cursor.fetchall() #NOTE return a list of tuples, [(user_id), ...]
 
-def getUserFriends(uid):
+def getUserFriendids(uid):
     cursor = conn.cursor()
-    cursor.execute("SELECT * FROM Friends WHERE Friends.user1_id = '{0}' OR Friends.user2_id = '{0}'".format(uid))
+    cursor.execute("SELECT * FROM Friends WHERE Friends.user_id1 = '{0}' OR Friends.user2_id = '{0}'".format(uid))
     user_friend_pairs = cursor.fetchall()
     friends_of_user = [users[0] if users[0] != uid else users[1] for users in user_friend_pairs]
     return friends_of_user
 
+def addFriend(uid, pid):
+	cursor = conn.cursor()
+	cursor.execute('''INSERT INTO Likes (picture_id, user_id) VALUES (%s, %s)''', (pid, uid))
+	conn.commit()
+ 
+def getFriends(uid):
+	#friendids = getUserFriendids(uid) #[(fid, uid), ...]
+	cursor = conn.cursor()
+	cursor.execute('''WITH friendids(uid, fid) AS (Select * FROM Friends WHERE user_id1 = %s) SELECT U.first_name, U.last_name, U.email FROM Users U, friendids F WHERE F.fid=U.user_id''', uid)
+	# cursor.execute("SELECT F.name, F.email FROM (SELECT * FROM Friends WHERE Friends.user_id1 = '{0}') WHERE F.user_id = friend_ids.uid".format(uid))
+	#cursor.execute('''SELECT U.name, U.email FROM F.Friends, U.Users WHERE F.user_id1 = %s''', uid)
+	conn.commit()
+	return cursor.fetchall() #returns [(firstname, lastname, email)...]
+
 # adding a Friends relation
-# @app.route('/addfriend/<string:friend>', methods=['POST'])
-# @flask_login.login_required
-# def add_friend(friend):
+@app.route('/addfriend', methods=['POST'])
+@flask_login.login_required
+def add_friend():
+	uid=request.form.get('uid')
+	uid=uid.replace(',','')
+	print(uid)
+	fid=request.form.get('fid')
+	fid=fid.replace(',','')
+	print(fid)
+	#insert into friends
+	cursor = conn.cursor()
+	cursor.execute("INSERT INTO Friends (user_id1, user_id2) VALUES ('{0}', '{1}')".format(uid, fid))
+	conn.commit()
+	return render_template('hello.html', name=flask_login.current_user.id, message='Friend Added!', 
+ 								albums=getUsersAlbums(uid), friends=getFriends(uid), photos=getUsersPhotos(uid), base64=base64)
 #     uid = getUserIdFromEmail(flask_login.current_user.id)
 #     cursor = conn.cursor()
 #     cursor.execute("SELECT user_id FROM Users WHERE username = '{0}'".format(friend))
@@ -226,10 +252,10 @@ def add_like():
 		pid = request.form.get('pid').replace('/','')
 		insertLike(uid, pid)
 		return render_template('hello.html', name=flask_login.current_user.id, message='Like Added!', 
-									albums=getUsersAlbums(uid), photos=getUsersPhotos(uid), base64=base64)
+									albums=getUsersAlbums(uid), photos=getUsersPhotos(uid), friends=getFriends(uid), base64=base64)
 	except:
 		return render_template('hello.html', name=flask_login.current_user.id, message='Like was not added.', 
-									albums=getUsersAlbums(uid), photos=getUsersPhotos(uid), base64=base64)
+									albums=getUsersAlbums(uid), photos=getUsersPhotos(uid), friends=getFriends(uid), base64=base64)
 
 # ------------------------------------ COMMENTS ------------------------------------
 def insertComment(uid, comment, pid):
@@ -249,10 +275,10 @@ def add_comment():
 		pid = request.form.get('pid').replace('/','')
 		insertComment(uid, cmmt, pid)
 		return render_template('hello.html', name=flask_login.current_user.id, message='Comment Added!', 
-									albums=getUsersAlbums(uid), photos=getUsersPhotos(uid), base64=base64)
+									albums=getUsersAlbums(uid), photos=getUsersPhotos(uid), friends=getFriends(uid), base64=base64)
 	except:
 		return render_template('hello.html', name=flask_login.current_user.id, message='Comment was not added.', 
-									albums=getUsersAlbums(uid), photos=getUsersPhotos(uid), base64=base64)
+									albums=getUsersAlbums(uid), photos=getUsersPhotos(uid), friends=getFriends(uid), base64=base64)
 
 # ---------------------begin album creating code---------------------
 @app.route('/newalbum', methods=['GET', 'POST'])
@@ -266,7 +292,7 @@ def create_album():
 		cursor.execute('''INSERT INTO Albums (album_name, user_id, doc) VALUES (%s, %s, %s )''', (aname, uid, time))
 		conn.commit()
 		return render_template('hello.html', name=flask_login.current_user.id, message='Album created!', 
-								albums=getUsersAlbums(uid), photos=getUsersPhotos(uid), base64=base64)
+								albums=getUsersAlbums(uid), photos=getUsersPhotos(uid), friends=getFriends(uid), base64=base64)
 	else:
 		return render_template('newalbum.html')
 
@@ -297,10 +323,10 @@ def add_tag():
 			print(tag)
 			insertTag(tag, pid)
 		return render_template('hello.html', name = flask_login.current_user.id, message='Tag Added!', 
-									albums = getUsersAlbums(uid), photos = getUsersPhotos(uid), base64=base64)
+									albums = getUsersAlbums(uid), photos = getUsersPhotos(uid), friends=getFriends(uid), base64=base64)
 	except:
 		return render_template('hello.html', name = flask_login.current_user.id, message='Tag was not added', 
-									albums = getUsersAlbums(uid), photos = getUsersPhotos(uid), base64=base64)
+									albums = getUsersAlbums(uid), photos = getUsersPhotos(uid), friends=getFriends(uid), base64=base64)
 
 # ----------------------------- DELETION ----------------------------------
 @app.route('/mycontent', methods=['POST'])
@@ -314,7 +340,7 @@ def show_content():
 		cursor.execute('''DELETE FROM Pictures WHERE picture_id = %s;''', pid)
 		conn.commit()
 		return render_template('hello.html', name = flask_login.current_user.id, message='Photo Deleted!', 
-								albums = getUsersAlbums(uid), photos = getUsersPhotos(uid), base64=base64)
+								albums = getUsersAlbums(uid), photos = getUsersPhotos(uid), friends=getFriends(uid), base64=base64)
 	# delete Album
 	if(request.form.get('deletealb')):
 		aid = request.form.get('deletealb')
@@ -322,9 +348,9 @@ def show_content():
 		cursor.execute('''DELETE FROM Albums WHERE album_id = %s;''', aid)
 		conn.commit()
 		return render_template('hello.html', name = flask_login.current_user.id, message='Album Deleted!', 
-								albums = getUsersAlbums(uid), photos = getUsersPhotos(uid), base64=base64)
+								albums = getUsersAlbums(uid), photos = getUsersPhotos(uid), friends=getFriends(uid), base64=base64)
 	return render_template('hello.html', name = flask_login.current_user.id, message='Here is your content', 
-								albums = getUsersAlbums(uid), photos = getUsersPhotos(uid), base64=base64)
+								albums = getUsersAlbums(uid), photos = getUsersPhotos(uid), friends=getFriends(uid), base64=base64)
 	
 # ------------------------- UPLOAD PHOTOS -------------------------
 
@@ -348,7 +374,7 @@ def upload_file():
 						(photo_data, uid, caption, aid))
 			conn.commit()
 			return render_template('hello.html', name=flask_login.current_user.id, message='Photo uploaded!', 
-									photos=getUsersPhotos(uid), base64=base64)
+									photos=getUsersPhotos(uid), friends=getFriends(uid), base64=base64)
 		except:
 			return render_template('upload.html', albums=getUsersAlbums(uid))
 	#The method is GET so we return a  HTML form to upload the a photo.
@@ -397,7 +423,7 @@ def getPhotos_byTag(tag, onlyusers):
 def hello(): #hello()
 	allphotos = getAllPhotos()
 	allalbums = getAllAlbums()
-	allusers  = getAllUsers()
+	# allusers  = getAllUsers()
  
 	try:
 		userid=getUserIdFromEmail(flask_login.current_user.id)
@@ -422,11 +448,16 @@ def hello(): #hello()
 		# get User from email
 		if(request.form.get('friendsearch')):
 			myemail = request.form.get('friendsearch')
-			photos = getUser_byEmail(myemail)
-			return render_template('home.html', uid=userid, photos=photos, base64=base64)
+   			#if user exists -> follow button
+			fid= getUserIdFromEmail(myemail)
+			if getUser_byEmail(myemail) and fid!=userid:
+				#add friend page
+				return render_template('addfriend.html', email=myemail, uid=userid, fid=fid)
+			#if user not exists -> message "sorry!"
+			return render_template('home.html', uid=userid, photos=allphotos, base64=base64, message='Friend does not exist!')
 		else:
 			return render_template('home.html', message = "Nothing was found for that search", uid=userid, albums = allalbums, photos = allphotos, base64=base64)
-	return render_template('home.html', uid=userid, users=allusers, albums = allalbums, photos = allphotos, base64=base64)
+	return render_template('home.html', uid=userid, albums = allalbums, photos = allphotos, base64=base64)
 	
 
 
