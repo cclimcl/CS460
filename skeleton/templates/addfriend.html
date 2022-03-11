@@ -1,0 +1,14 @@
+<!doctype html>
+<head>
+    <title>We found {{email}}!</title>
+</head>
+    <body>
+        <div class="title">
+            <h1>Do you want to be friends?</h1>
+        </div>
+        <form method="post" enctype="multipart/form-data" action="/addfriend">
+            <input type="hidden" value={{uid}}, name="uid">
+            <input type="hidden" value={{fid}}, name="fid">
+            <input type="submit" value="Add Friend" />
+        </form>
+    </body>
