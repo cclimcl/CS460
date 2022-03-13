@@ -29,8 +29,8 @@ app.secret_key = 'super secret string'  # Change this!
 
 #These will need to be changed according to your creditionals
 app.config['MYSQL_DATABASE_USER'] = 'root'
-app.config['MYSQL_DATABASE_PASSWORD'] = 'chrwllg2MIT'
-app.config['MYSQL_DATABASE_DB'] = 'photoshare'
+app.config['MYSQL_DATABASE_PASSWORD'] = 'password'
+app.config['MYSQL_DATABASE_DB'] = 'photoshare1' #NOTICE: I added 1 to the end of this. so youll need to change it back
 app.config['MYSQL_DATABASE_HOST'] = 'localhost'
 mysql.init_app(app)
 
@@ -128,11 +128,11 @@ def register():
 @app.route("/register", methods=['POST'])
 def register_user():
 	try:
-		first_name=request.form.get('first_name')
-		last_name=request.form.get('last_name')
+		first_name=request.form.get('firstname')
+		last_name=request.form.get('lastname')
 		email=request.form.get('email')
 		password=request.form.get('password')
-		birth_date=request.form.get('birth_date')
+		birth_date=request.form.get('birthday')
 		gender=request.form.get('gender')
 		hometown=request.form.get('hometown')
 	except:
@@ -149,7 +149,7 @@ def register_user():
 		conn.commit()
 		#log user in
 		user = User()
-		#user.id = email
+		user.id = email
 		flask_login.login_user(user)
 		return render_template('hello.html', name=first_name, message='Account Created!')
 	else:
@@ -374,7 +374,7 @@ def upload_file():
 						(photo_data, uid, caption, aid))
 			conn.commit()
 			return render_template('hello.html', name=flask_login.current_user.id, message='Photo uploaded!', 
-									photos=getUsersPhotos(uid), friends=getFriends(uid), base64=base64)
+									photos=getUsersPhotos(uid), albums=getUsersAlbums(uid), friends=getFriends(uid), base64=base64)
 		except:
 			return render_template('upload.html', albums=getUsersAlbums(uid))
 	#The method is GET so we return a  HTML form to upload the a photo.
@@ -403,28 +403,81 @@ def getPhotos_byAlbum(aid):
 	cursor.execute('''SELECT * FROM Pictures WHERE album_id = %s''', aid)
 	return cursor.fetchall() #NOTE return a list of tuples, [(picture_id, user_id, imgdata, caption, loc, album_id), ...]
 
-def getPhotos_byTag(tag, onlyusers):
-	if onlyusers==0:
-		cursor = conn.cursor()
-		cursor.execute('''SELECT P.picture_id, P.user_id, P.imgdata, P.caption, P.loc, P.album_id FROM Pictures P, Tag T 
-						WHERE T.word = %s AND T.picture_id = P.picture_id''', tag)
-		return cursor.fetchall() #NOTE return a list of tuples, [(picture_id, user_id, imgdata, caption, loc, album_id), ...]
-	else:
+def getTopTags():
+	cursor = conn.cursor()
+	cursor.execute('''
+	WITH tophalf(wrd,cnt) AS 
+		(WITH bycount(wrd,cnt) AS 
+			(SELECT word, COUNT(word) FROM Tag GROUP BY word) 
+		SELECT wrd, cnt FROM bycount 
+    	WHERE cnt> (SELECT AVG(cnt) FROM bycount)) 
+	SELECT wrd FROM tophalf WHERE cnt>(SELECT AVG(cnt) FROM tophalf)''')
+	return cursor.fetchall()
+
+# SELECT P.picture_id, P.user_id, P.imgdata, P.caption, P.loc, P.album_id 
+# FROM Pictures P, Tag T1, Tag T2 
+# WHERE T1.word = 'littlewomen' 
+# 	AND T1.picture_id = P.picture_id 
+#     AND T2.word='jo' 
+#     AND T2.picture_id = P.picture_id
+
+# in a loop
+#TODO: make a T_ string
+#TODO make FROMTag string
+#TODO: add a T_.word=<tag> string and T_.pic...
+def getPhotos_byTags(tags,onlyusers):
+	query  = '''SELECT P.picture_id, P.user_id, P.imgdata, P.caption, P.loc, P.album_id FROM Pictures P'''
+	tagcnt = len(tags)
+	for i in range(0,tagcnt):
+		query+=(''', Tag T'''+ str(i))
+	query+=''' WHERE '''
+	for (i, tag) in enumerate(tags):
+		Tstr = ('''T'''+ str(i))
+		if(i>0):
+			query+=''' AND '''
+		condition = (Tstr+'''.word=\''''+tag+'''\' AND '''+Tstr+'''.picture_id=P.picture_id''')
+		query += condition
+	if onlyusers==1:
 		uid = getUserIdFromEmail(flask_login.current_user.id)
-		cursor = conn.cursor() 
-		cursor.execute("SELECT P.picture_id, P.user_id, P.imgdata, P.caption, P.loc, P.album_id FROM Pictures P, Tag T \
-						WHERE P.user_id = '{0}' AND T.picture_id = P.picture_id AND T.word = '{1}'".format(uid, tag))
-		return cursor.fetchall() #NOTE return a list of tuples, [(picture_id, user_id, imgdata, caption, loc, album_id), ...]
+		query += (''' AND P.user_id ='''+str(uid))
+	cursor=conn.cursor()
+	cursor.execute(query)
+	return cursor.fetchall()#NOTE return a list of tuples, [(picture_id, user_id, imgdata, caption, loc, album_id), ...]
+
+# def getPhotos_byTag(tag, onlyusers):
+# 	if onlyusers==0:
+# 		cursor = conn.cursor()
+# 		cursor.execute('''SELECT P.picture_id, P.user_id, P.imgdata, P.caption, P.loc, P.album_id FROM Pictures P, Tag T 
+# 						WHERE T.word = %s AND T.picture_id = P.picture_id''', tag)
+# 		return cursor.fetchall() #NOTE return a list of tuples, [(picture_id, user_id, imgdata, caption, loc, album_id), ...]
+# 	else:
+# 		uid = getUserIdFromEmail(flask_login.current_user.id)
+# 		cursor = conn.cursor() 
+# 		cursor.execute("SELECT P.picture_id, P.user_id, P.imgdata, P.caption, P.loc, P.album_id FROM Pictures P, Tag T \
+# 						WHERE P.user_id = '{0}' AND T.picture_id = P.picture_id AND T.word = '{1}'".format(uid, tag))
+# 		return cursor.fetchall() #NOTE return a list of tuples, [(picture_id, user_id, imgdata, caption, loc, album_id), ...]
 
 # ---------------------------------------------------------------------------------
 
+#--------------------------------Top Tags -----------------------------------------
+@app.route("/toptags", methods=['GET'])
+def toptags():
+	tags = getTopTags()
+	print(tags)
+	tags = [tag for (tag,) in tags]
+	print(tags)
+	if(tags):
+		return render_template('toptags.html', message="Here are the top tags!", toptags=tags)
+	else:
+		return render_template('toptags.html', message="There are no tags yet")
+
+#---------------------------------- Home  -----------------------------------------
 #default page/home page
 @app.route("/", methods=['GET', 'POST'])
 def hello(): #hello()
 	allphotos = getAllPhotos()
 	allalbums = getAllAlbums()
 	# allusers  = getAllUsers()
- 
 	try:
 		userid=getUserIdFromEmail(flask_login.current_user.id)
 	except:
@@ -438,15 +491,19 @@ def hello(): #hello()
 		# get All photos from tag
 		if(request.form.get('tag')):
 			tag = request.form.get('tag')
-			photos = getPhotos_byTag(tag, 0)
+			tag = tag.replace('/','')
+			tag = tag.split(' ')
+			photos = getPhotos_byTags(tag, 0)
 			return render_template('home.html', uid=userid, photos=photos, base64=base64)
 		# get User photos from tag
 		if(request.form.get('mytagsearch')):
 			mytag = request.form.get('mytagsearch')
-			photos = getPhotos_byTag(mytag, 1)
+			mytag = mytag.replace('/','')
+			mytag = mytag.split(' ')
+			photos = getPhotos_byTags(mytag, 1)
 			return render_template('home.html', uid=userid, photos=photos, base64=base64)
 		# get User from email
-		if(request.form.get('friendsearch')):
+		if(request.form.get('friendsearch')): #NOTE: I think we need to do a try except here to not get internal error when query returns nothing
 			myemail = request.form.get('friendsearch')
    			#if user exists -> follow button
 			fid= getUserIdFromEmail(myemail)
