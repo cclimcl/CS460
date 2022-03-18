@@ -1,0 +1,81 @@
+<!doctype html>
+{% if message %}
+  <h4>{{message}}!</h4>
+{% endif %}
+<title>Photoshare</title>
+{% if name %}
+  <h1>Hello {{ name }}!</h1>
+{% endif %}
+
+{% if message is none %}
+  <p>You should <a href='/login'>login!</a></p>
+{% else %}
+  <p> Create new content, view, or edit the content you currently have.</a></p>
+{% endif %}
+
+<ul>
+  <li><a href='/newalbum'>Create an album</a></li>
+  <li><a href='/upload'>Upload a photo</a> </li>
+  <li><a href='/logout'>Logout</a></li>
+  <li><a href='/'>Home</a></li>
+  <li><a href='/recs'>View Recommendations</a></li>
+</ul>
+
+{% if albums %}
+<h2>Here are your Albums</h2>
+    <ul>
+    {% for (aid, aname, _,_) in albums %}
+
+        <li>{{aname}}</li>
+        <form method="post" action="/">
+          <input type="hidden"  name="aid" value={{aid}}/>
+          <input type="submit" value="View"/>
+        </form>
+        <form method="post" action="/mycontent">
+          <input type="hidden"  name="deletealb" value={{aid}}/>
+          <input type="submit" value="Delete"/>
+        </form>
+    {% endfor %}
+    </ul>
+{% endif %}
+
+{% if photos %}
+<h2>Here are your photos</h2>
+    <ul>
+      <div style="float:left";>
+    {% for (data, pid, caption) in photos %}
+        <li>{{caption}}<br>
+        <img src='data:image/jpg;base64, {{ base64.b64encode(data).decode("ascii") }}'/></li>
+        <form method="post" enctype="multipart/form-data" action="/mycontent">
+          <input type="hidden"  name="deletepic" value={{pid}}/>
+          <input type="submit" value="Delete" />
+        </form>
+        <form method="post" enctype="multipart/form-data" action="/addtag">
+          <label for="tag">Add tags ("tag,tag2,...") </label>
+          <input type="text" name="tag" required='true'/>
+          <input type="hidden" name="pid" value = {{pid}}/>
+          <input type="submit" value="Add" />
+        </form>
+        <form method="post" enctype="multipart/form-data" action="/addcomment">
+          <label for="comment">Add comment </label>
+          <input type="text" name="comment" required='true'/>
+          <input type="hidden" name="pid" value = {{pid}}/>
+          <input type="submit" value="Add" />
+        </form>
+        <form method="post" enctype="multipart/form-data" action="/addlike">
+          <button type="submit">Like</button>
+        </form>
+      </div>
+    {% endfor %}
+    </ul>
+{% endif %}
+
+{% if friends %}
+<h2>Here are your friends</h2>
+    <ul>
+    {% for (fname, lname, email) in friends %}
+
+        <li>{{fname}} {{lname}}: {{email}}</li>
+    {% endfor %}
+    </ul>
+{% endif %}

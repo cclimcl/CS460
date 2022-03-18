@@ -1,0 +1,27 @@
+<!doctype html>
+<h1> Here are your recommendations</h1>
+
+<h2>Here are your top 5 Tags:</h2>
+    <ul>
+    {% for tag in tagrecs %}
+        <li>{{tag}}</li>
+        <form method="post" enctype="multipart/form-data" action="/">
+            <input type="hidden"  name="tag" value={{tag}}/>
+            <input type="submit" value="View"/>
+        </form>
+    {% endfor %}
+    </ul>
+
+    <div>
+        <h2>Search Your Recommended Photos by Tag</h3>
+            <form method="post" action="/recs">
+                <input type="search" name="searchtags"/>
+              </form>
+    </div>
+
+    {% for (pid, uid, data, caption, loc, aid) in photos %}
+        <div style="float:left;">
+            <li>{{caption}}<br>
+            <img src='data:image/jpg;base64, {{ base64.b64encode(data).decode("ascii") }}'/></li>
+        </div>
+    {% endfor %}
