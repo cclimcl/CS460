@@ -3,11 +3,13 @@
 <h3>{{message}}</h3>
 
 {% if uid is none %}
-  <a href='/login'>login!</a>
+  <a href='/login'>login!</a><br>
   <a href='/logout'>Create an account></a>
 {% else %}
   <p> Go to <a href='/profile'>profile?</a></p>
 {% endif %}
+
+<p>View top tags <a href='/toptags'>here</a>.</p>
 
 {% if albums %}
 <h2>Browse Albums</h2>
@@ -24,7 +26,7 @@
 {% endif %}
 
 <div>
-  <h2>Search Friends by Email</h3>
+  <h2>Search for a Friend by Email</h3>
     <form method="post" action="/">
       <input type="search" name="friendsearch"/>
     </form>
