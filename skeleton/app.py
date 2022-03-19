@@ -522,14 +522,29 @@ def search_fromTop5Tags(toptags, searchtags):
 	cursor.execute(query)
 	return cursor.fetchall()
 
+def get_FriendsofFriends(uid):
+	cursor =conn.cursor()
+	cursor.execute('''
+	WITH fofcnt(ffid, cnt) AS 
+		(WITH fof(ffid) AS
+			(WITH myfriends(fid) AS 
+				(SELECT user_id2 FROM Friends
+				WHERE user_id1=%s)
+			SELECT F.user_id2 FROM Friends F, myfriends 
+			WHERE F.user_id1 = myfriends.fid AND F.user_id2 <> %s)
+		SELECT fof.ffid, COUNT(ffid) FROM fof GROUP BY ffid)
+	SELECT U.first_name, U.last_name, U.email FROM fofcnt, Users U WHERE fofcnt.ffid = U.user_id
+	ORDER BY fofcnt.cnt DESC;''', (uid, uid))
+	return cursor.fetchall()
+
+
 @app.route('/recs', methods=['GET', 'POST'])
 @flask_login.login_required
 def recs():
 	uid = getUserIdFromEmail(flask_login.current_user.id)
 	top5 = getTop5_Tags(uid)
-	print(top5)
 	top5tags = [word for (word,) in top5]
-	print(top5tags)
+	fofs = get_FriendsofFriends(uid)
 	if request.method == 'POST':
 		searchtags = request.form.get('searchtags')
 		print(searchtags)
@@ -540,7 +555,7 @@ def recs():
 	else:
 		print("photos from top 5 tags")
 		photos = getPhotos_fromTop5Tags(top5tags)
-	return render_template('recs.html', tagrecs = top5tags, photos = photos, base64=base64)
+	return render_template('recs.html', tagrecs = top5tags, friendrecs=fofs, photos = photos, base64=base64)
 	
 # app.route("/searchrecs", methods=['Post'])
 # @flask_login.login_required
