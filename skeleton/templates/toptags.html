@@ -3,8 +3,8 @@
 
 <p> Go back <a href='/'>home</a></p>
 
-{% if toptags %}
 <p>The top tags are determined by finding the tags above average, then finding the tags above the average of those tags.</p>
+{% if toptags %}
     <ul>
     {% for (word) in toptags %}
         <li>{{word}}</li>
@@ -15,5 +15,3 @@
     {% endfor %}
     </ul>
 {% endif %}
-
-
