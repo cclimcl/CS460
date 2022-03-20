@@ -56,15 +56,6 @@
           <input type="hidden" name="pid" value = {{pid}}/>
           <input type="submit" value="Add" />
         </form>
-        <form method="post" enctype="multipart/form-data" action="/addcomment">
-          <label for="comment">Add comment </label>
-          <input type="text" name="comment" required='true'/>
-          <input type="hidden" name="pid" value = {{pid}}/>
-          <input type="submit" value="Add" />
-        </form>
-        <form method="post" enctype="multipart/form-data" action="/addlike">
-          <button type="submit">Like</button>
-        </form>
       </div>
     {% endfor %}
     </ul>
