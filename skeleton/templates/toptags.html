@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<h2>{{message}}</h2>
+
+<p> Go back <a href='/'>home</a></p>
+
+{% if toptags %}
+<p>The top tags are determined by finding the tags above average, then finding the tags above the average of those tags.</p>
+    <ul>
+    {% for (word) in toptags %}
+        <li>{{word}}</li>
+        <form method="post" enctype="multipart/form-data" action="/">
+          <input type="hidden"  name="tag" value={{word}}/>
+          <input type="submit" value="View"/>
+        </form>
+    {% endfor %}
+    </ul>
+{% endif %}
+
+
