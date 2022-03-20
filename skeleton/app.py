@@ -29,8 +29,8 @@ app.secret_key = 'super secret string'  # Change this!
 
 #These will need to be changed according to your creditionals
 app.config['MYSQL_DATABASE_USER'] = 'root'
-app.config['MYSQL_DATABASE_PASSWORD'] = 'password'
-app.config['MYSQL_DATABASE_DB'] = 'photoshare1' #NOTICE: I added 1 to the end of this. so youll need to change it back
+app.config['MYSQL_DATABASE_PASSWORD'] = 'chrwllg2MIT'
+app.config['MYSQL_DATABASE_DB'] = 'photoshare' #NOTICE: I added 1 to the end of this. so youll need to change it back
 app.config['MYSQL_DATABASE_HOST'] = 'localhost'
 mysql.init_app(app)
 
@@ -139,18 +139,19 @@ def register_user():
 		print("couldn't find all tokens") #this prints to shell, end users will not see this (all print statements go to shell)
 		return flask.redirect(flask.url_for('register'))
 	cursor = conn.cursor()
-	test =  isEmailUnique(email)
-	
+	test = isEmailUnique(email)
 	# pass: first_name, last_name, email, password, date_of_birth
-	passed =  test and first_name and last_name and password and birth_date
-
+	passed =  test and (first_name != None) and (last_name != None) and (password != None) and (birth_date != None)
 	if passed: # if email is unique
-		print(cursor.execute("INSERT INTO Users (first_name, last_name, email, password, birth_date, gender, hometown) VALUES ('{0}', '{1}', '{2}', '{3}', '{4}', '{5}', '{6}')".format(first_name, last_name, email, password, birth_date, gender, hometown)))
-		conn.commit()
-		#log user in
-		user = User()
-		user.id = email
-		flask_login.login_user(user)
+		try:
+			cursor.execute("INSERT INTO Users (first_name, last_name, email, password, birth_date, gender, hometown) VALUES ('{0}', '{1}', '{2}', '{3}', '{4}', '{5}', '{6}')".format(first_name, last_name, email, password, birth_date, gender, hometown))
+			conn.commit()
+   			#log user in
+			user = User()
+			user.id = email
+			flask_login.login_user(user)
+		except: 
+			return render_template('home.html', photos = getAllPhotos(), albums=getAllAlbums(), message='Email already exists', base64=base64)
 		return render_template('hello.html', name=first_name, message='Account Created!')
 	else:
 		print("couldn't find all tokens")
@@ -239,6 +240,7 @@ def add_friend():
 
 # ------------------------------------ LIKES ------------------------------------
 def insertLike(uid, pid):
+	print("in insert like")
 	cursor = conn.cursor()
 	cursor.execute('''INSERT INTO Likes (picture_id, user_id) VALUES (%s, %s)''', (pid, uid))
 	conn.commit()
@@ -250,19 +252,34 @@ def add_like():
 	uid = getUserIdFromEmail(flask_login.current_user.id)
 	try:
 		pid = request.form.get('pid').replace('/','')
-		insertLike(uid, pid)
-		return render_template('hello.html', name=flask_login.current_user.id, message='Like Added!', 
+		print("Adding like")
+		if (uid != getUserIdFromPicture(pid)):
+			insertLike(uid, pid)
+			return render_template('hello.html', name=flask_login.current_user.id, message='Like Added', 
+									albums=getUsersAlbums(uid), photos=getUsersPhotos(uid), friends=getFriends(uid), base64=base64)
+		return render_template('hello.html', name=flask_login.current_user.id, message='You cannot like your own photos', 
 									albums=getUsersAlbums(uid), photos=getUsersPhotos(uid), friends=getFriends(uid), base64=base64)
 	except:
-		return render_template('hello.html', name=flask_login.current_user.id, message='Like was not added.', 
+		return render_template('hello.html', name=flask_login.current_user.id, message='Like not added', 
 									albums=getUsersAlbums(uid), photos=getUsersPhotos(uid), friends=getFriends(uid), base64=base64)
 
-# ------------------------------------ COMMENTS ------------------------------------
-def insertComment(uid, comment, pid):
-	cid = 0 #need to come up with a way to get id
-	doc = getDate()
+def count_likes(pid):
 	cursor = conn.cursor()
-	cursor.execute('''INSERT INTO Comments (cmmt_id, user_id, picture_id, cmmt, doc) VALUES (%s, %s, %s, %s, %s)''', (cid, uid, pid, comment, doc))
+	cursor.execute("SELECT COUNT(*) FROM Likes WHERE picture_id = '{0}'".format(pid))
+	return cursor.fetchone()[0]
+
+# ------------------------------------ COMMENTS ------------------------------------
+def getUserIdFromPicture(pid):
+	cursor = conn.cursor()
+	cursor.execute("SELECT user_id FROM Pictures WHERE picture_id = '{0}'".format(pid))
+	return cursor.fetchone()[0]
+
+def insertComment(uid, comment, pid):
+	print("here")
+	doc = getDate()
+	print(uid, pid, comment, doc)
+	cursor = conn.cursor()
+	cursor.execute('''INSERT INTO Comments (user_id, picture_id, cmmt, doc) VALUES (%s, %s, %s, %s)''', (uid, pid, comment, doc))
 	conn.commit()
  
 #add comment to photo
@@ -272,13 +289,25 @@ def add_comment():
 	uid = getUserIdFromEmail(flask_login.current_user.id)
 	try:
 		cmmt = request.form.get('comment')
+		print(cmmt)
 		pid = request.form.get('pid').replace('/','')
+		print(pid)
+		if (uid == getUserIdFromPicture(pid)):
+			return render_template('hello.html', name=flask_login.current_user.id, message='You cannot add comments on your own photos', 
+									albums=getUsersAlbums(uid), photos=getUsersPhotos(uid), friends=getFriends(uid), base64=base64)
 		insertComment(uid, cmmt, pid)
-		return render_template('hello.html', name=flask_login.current_user.id, message='Comment Added!', 
+		return render_template('hello.html', name=flask_login.current_user.id, message='Comment Added', 
 									albums=getUsersAlbums(uid), photos=getUsersPhotos(uid), friends=getFriends(uid), base64=base64)
 	except:
-		return render_template('hello.html', name=flask_login.current_user.id, message='Comment was not added.', 
+		return render_template('hello.html', name=flask_login.current_user.id, message='Comment was not added', 
 									albums=getUsersAlbums(uid), photos=getUsersPhotos(uid), friends=getFriends(uid), base64=base64)
+
+def getPhotos_byComment(cmmt):
+	query  = '''SELECT P.picture_id, P.caption, P.imgdata, P.loc, P.album_id, P.user_id FROM Pictures P'''
+	query += ''', Comments C WHERE C.cmmt=\''''+cmmt+'''\' AND C.picture_id=P.picture_id'''
+	cursor=conn.cursor()
+	cursor.execute(query)
+	return cursor.fetchall()#NOTE return a list of tuples, [(picture_id, user_id, imgdata, caption, loc, album_id), ...]
 
 # ---------------------begin album creating code---------------------
 @app.route('/newalbum', methods=['GET', 'POST'])
@@ -335,7 +364,7 @@ def show_content():
 	uid = getUserIdFromEmail(flask_login.current_user.id)
 		# delete photo
 	if(request.form.get('deletepic')):
-		pid = request.form.get('deletepic')
+		pid = request.form.get('deletepic').replace('/','')
 		cursor = conn.cursor()
 		cursor.execute('''DELETE FROM Pictures WHERE picture_id = %s;''', pid)
 		conn.commit()
@@ -343,7 +372,7 @@ def show_content():
 								albums = getUsersAlbums(uid), photos = getUsersPhotos(uid), friends=getFriends(uid), base64=base64)
 	# delete Album
 	if(request.form.get('deletealb')):
-		aid = request.form.get('deletealb')
+		aid = request.form.get('deletealb').replace('/','')
 		cursor = conn.cursor()
 		cursor.execute('''DELETE FROM Albums WHERE album_id = %s;''', aid)
 		conn.commit()
@@ -419,7 +448,7 @@ def getTopTags():
 #TODO make FROMTag string
 #TODO: add a T_.word=<tag> string and T_.pic...
 def getPhotos_byTags(tags,onlyusers):
-	query  = '''SELECT P.picture_id, P.user_id, P.imgdata, P.caption, P.loc, P.album_id FROM Pictures P'''
+	query  = '''SELECT P.picture_id, P.caption, P.imgdata, P.loc, P.album_id, P.user_id FROM Pictures P'''
 	tagcnt = len(tags)
 	for i in range(0,tagcnt):
 		query+=(''', Tag T'''+ str(i))
@@ -462,7 +491,7 @@ def toptags():
 	if(tags):
 		return render_template('toptags.html', message="Here are the top tags!", toptags=tags)
 	else:
-		return render_template('toptags.html', message="There are no tags yet")
+		return render_template('toptags.html', message="There are not enough tags yet")
 
 
 #-------------------------------- Recomendations ----------------------------------
@@ -542,9 +571,13 @@ def get_FriendsofFriends(uid):
 @flask_login.login_required
 def recs():
 	uid = getUserIdFromEmail(flask_login.current_user.id)
-	top5 = getTop5_Tags(uid)
-	top5tags = [word for (word,) in top5]
-	fofs = get_FriendsofFriends(uid)
+	try:
+		top5 = getTop5_Tags(uid)
+		top5tags = [word for (word,) in top5]
+		fofs = get_FriendsofFriends(uid)
+	except: 
+		return render_template('hello.html', name=flask_login.current_user.id, message='We do not have enough data on you to make recommendations', 
+ 								albums=getUsersAlbums(uid), friends=getFriends(uid), photos=getUsersPhotos(uid), base64=base64)
 	if request.method == 'POST':
 		searchtags = request.form.get('searchtags')
 		print(searchtags)
@@ -569,6 +602,7 @@ def recs():
 def hello(): 
 	allphotos = getAllPhotos()
 	allalbums = getAllAlbums()
+	# likescount = count_likes()
 	# allusers  = getAllUsers()
 	try:
 		userid=getUserIdFromEmail(flask_login.current_user.id)
@@ -605,6 +639,13 @@ def hello():
 				return render_template('addfriend.html', email=myemail, uid=userid, fid=fid)
 			#if user not exists -> message "sorry!"
 			return render_template('home.html', uid=userid, photos=allphotos, base64=base64, message='Friend does not exist!')
+		# get User photos from comment
+		if(request.form.get('commentsearch')): 
+			mycmmt = request.form.get('commentsearch')
+			mycmmt = mycmmt.replace('/','')
+			# mycmmt = mycmmt.split(' ')
+			photos = getPhotos_byComment(mycmmt)
+			return render_template('home.html', uid=userid, photos=photos, base64=base64)
 		else:
 			return render_template('home.html', message = "Nothing was found for that search", uid=userid, albums = allalbums, photos = allphotos, base64=base64)
 	return render_template('home.html', uid=userid, albums = allalbums, photos = allphotos, base64=base64)
