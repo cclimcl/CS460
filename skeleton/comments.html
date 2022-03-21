@@ -1,0 +1,6 @@
+<!doctype html>
+<title>Here are results for '{{cmmt}}'!</title>
+
+{% for (fname, lname, email, uid, ccount) in users %}
+    <li>{{fname}} {{lname}}: {{email}}</li>
+{% endfor %}
