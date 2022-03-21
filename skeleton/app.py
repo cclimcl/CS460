@@ -264,7 +264,9 @@ def add_like():
 		return render_template('hello.html', name=flask_login.current_user.id, message='Like not added', 
 									albums=getUsersAlbums(uid), photos=getUsersPhotos(uid), friends=getFriends(uid), base64=base64)
 
-def count_likes(pid):
+@app.route('/numlikes', methods=['GET'])
+def count_likes():
+	pid = request.form.get('pid').replace('/','')
 	cursor = conn.cursor()
 	cursor.execute("SELECT COUNT(*) FROM Likes WHERE picture_id = '{0}'".format(pid))
 	return cursor.fetchone()[0]
@@ -310,6 +312,13 @@ def getPhotos_byComment(cmmt):
 	cursor.execute(query)
 	return cursor.fetchall()#NOTE return a list of tuples, [(picture_id, user_id, imgdata, caption, loc, album_id), ...]
 
+def getUsers_byComment(cmmt):
+    # SELECT userID,COUNT(*) AS ccount FROM Comment WHERE text='[comment]' GROUP BY userID ORDER BY ccount DESC
+	query  = '''SELECT U.first_name, U.last_name, U.email, U.user_id, COUNT(*) AS ccount FROM Users U'''
+	query += ''', Comments C WHERE C.cmmt=\''''+cmmt+'''\' AND C.user_id=U.user_id GROUP BY U.user_id ORDER BY ccount DESC'''
+	cursor=conn.cursor()
+	cursor.execute(query)
+	return cursor.fetchall()
 # ---------------------begin album creating code---------------------
 @app.route('/newalbum', methods=['GET', 'POST'])
 @flask_login.login_required
@@ -672,8 +681,10 @@ def hello():
 			mycmmt = request.form.get('commentsearch')
 			mycmmt = mycmmt.replace('/','')
 			# mycmmt = mycmmt.split(' ')
-			photos = getPhotos_byComment(mycmmt)
-			return render_template('home.html', uid=userid, photos=photos, base64=base64)
+			# photos = getPhotos_byComment(mycmmt)
+			users = getUsers_byComment(mycmmt)
+			#return render_template('home.html', users=users, uid=userid, photos=allphotos, base64=base64)
+			return render_template('comments.html', cmmt=mycmmt, users=users)
 		else:
 			return render_template('home.html', message = "Nothing was found for that search", uid=userid, albums = allalbums, photos = allphotos, base64=base64)
 	return render_template('home.html', uid=userid, albums = allalbums, photos = allphotos, base64=base64)
