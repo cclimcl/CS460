@@ -29,8 +29,8 @@ app.secret_key = 'super secret string'  # Change this!
 
 #These will need to be changed according to your creditionals
 app.config['MYSQL_DATABASE_USER'] = 'root'
-app.config['MYSQL_DATABASE_PASSWORD'] = 'chrwllg2MIT'
-app.config['MYSQL_DATABASE_DB'] = 'photoshare' #NOTICE: I added 1 to the end of this. so youll need to change it back
+app.config['MYSQL_DATABASE_PASSWORD'] = 'password'
+app.config['MYSQL_DATABASE_DB'] = 'photoshare1' #NOTICE: I added 1 to the end of this. so youll need to change it back
 app.config['MYSQL_DATABASE_HOST'] = 'localhost'
 mysql.init_app(app)
 
@@ -72,6 +72,7 @@ def request_loader(request):
 	cursor.execute("SELECT password FROM Users WHERE email = '{0}'".format(email))
 	data = cursor.fetchall()
 	pwd = str(data[0][0])
+	#print(pwd)
 	user.is_authenticated = (request.form['password'] == pwd)
 	return user
 
@@ -275,7 +276,7 @@ def getUserIdFromPicture(pid):
 	return cursor.fetchone()[0]
 
 def insertComment(uid, comment, pid):
-	print("here")
+	print("inserting comment")
 	doc = getDate()
 	print(uid, pid, comment, doc)
 	cursor = conn.cursor()
@@ -479,6 +480,25 @@ def getPhotos_byTags(tags,onlyusers):
 # 						WHERE P.user_id = '{0}' AND T.picture_id = P.picture_id AND T.word = '{1}'".format(uid, tag))
 # 		return cursor.fetchall() #NOTE return a list of tuples, [(picture_id, user_id, imgdata, caption, loc, album_id), ...]
 
+def get_topContributors():
+	cursor=conn.cursor()
+	cursor.execute('''
+	WITH scores(uid, score) AS (
+		WITH counts(user_id, ccount, pcount) AS
+			(SELECT user_id, COUNT(user_id) AS ccount, 0 AS pcount
+    		FROM Comments GROUP BY user_id
+			UNION
+			SELECT user_id, 0 AS ccount, COUNT(user_id) AS pcount
+    		FROM Pictures GROUP BY user_id)
+		SELECT C.user_id, (C.ccount + P.pcount) AS score
+		FROM  counts C, counts P 
+		WHERE C.user_id = P.user_id
+			AND (C.ccount<>0 OR (C.ccount=0 AND P.ccount=0))-- Ccount is >0 or there is no Ccount>0
+    		AND (P.pcount<>0 OR (P.pcount=0 AND C.pcount=0)))-- Pcount is >0 or there is no P count >0
+	SELECT DISTINCT U.first_name, U.last_name, U.email FROM Users U, scores S 
+	WHERE U.user_id = S.uid ORDER BY S.score DESC LIMIT 10;''')
+	return cursor.fetchall()
+
 # ---------------------------------------------------------------------------------
 
 #--------------------------------Top Tags -----------------------------------------
@@ -493,7 +513,15 @@ def toptags():
 	else:
 		return render_template('toptags.html', message="There are not enough tags yet")
 
-
+#--------------------------------Top contributors -----------------------------------------
+@app.route("/topusers", methods=['GET'])
+def topusers():
+	topu = get_topContributors()
+	print(topu)
+	if(topu):
+		return render_template('topten.html', message="Here are the top 10 contributors!", topten = topu)
+	else:
+		return render_template('topten.html', message="There are not enough contributions yet")
 #-------------------------------- Recomendations ----------------------------------
 def getTop5_Tags(uid):
 	cursor = conn.cursor()
