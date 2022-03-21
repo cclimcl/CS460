@@ -1,0 +1,8 @@
+<!doctype html>
+<h2>Here are results for '{{cmmt}}'!</h2>
+
+<p> Go back <a href='/'>home</a></p>
+
+{% for (fname, lname, email, uid, ccount) in users %}
+    <li>{{fname}} {{lname}}: {{email}}</li>
+{% endfor %}
