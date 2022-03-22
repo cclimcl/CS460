@@ -5,9 +5,9 @@
 
 <p>Contributions are comments plus photos</p>
 {% if topten %}
-    <ul>
+    <ol type="1">
     {% for (fname, lname, email) in topten %}
     <li>{{fname}} {{lname}}: {{email}}</li>
     {% endfor %}
-    </ul>
+    </ol>
 {% endif %}
