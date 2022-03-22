@@ -51,7 +51,7 @@ CREATE TABLE Tag(
  );
 
 CREATE TABLE Comments(
- cmmt_id INTEGER,
+ cmmt_id INTEGER AUTO_INCREMENT,
  user_id INTEGER NOT NULL,
  picture_id INTEGER NOT NULL,
  cmmt VARCHAR (100),
@@ -66,7 +66,7 @@ CREATE TABLE Likes(
 	picture_id INTEGER,
 	user_id INTEGER,
 	PRIMARY KEY (picture_id, user_id),
-	FOREIGN KEY (picture_id) REFERENCES Pictures (picture_id), 
+	FOREIGN KEY (picture_id) REFERENCES Pictures (picture_id) ON DELETE CASCADE,  
 	FOREIGN KEY (user_id) REFERENCES Users (user_id)
 );
 
