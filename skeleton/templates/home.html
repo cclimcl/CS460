@@ -58,7 +58,7 @@
 
 {% endif %}
     <ul>
-    {% for (pid, caption, data, loc, aid, uid) in photos %}
+    {% for (pid, caption, data, loc, aid, uid, likes) in photos %}
         <div style="float:left;">
           <li>{{caption}}<br>
             <img src='data:image/jpg;base64, {{ base64.b64encode(data).decode("ascii") }}'/></li>
@@ -68,6 +68,7 @@
           <input type="hidden" name="pid" value = {{pid}}/>
           <input type="submit" value="Add" />
         </form>
+        <li>Number of Likes: {{likes}}
         <form method="post" enctype="multipart/form-data" action="/addlike">
           <input type="hidden" name="pid" value = {{pid}}/>
           <input type="submit" value="Like" />
