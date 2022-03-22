@@ -43,13 +43,14 @@
 <h2>Here are your photos</h2>
     <ul>
       <div style="float:left";>
-    {% for (data, pid, caption) in photos %}
+    {% for (data, pid, caption, likes) in photos %}
         <li>{{caption}}<br>
         <img src='data:image/jpg;base64, {{ base64.b64encode(data).decode("ascii") }}'/></li>
         <form method="post" enctype="multipart/form-data" action="/mycontent">
           <input type="hidden"  name="deletepic" value={{pid}}/>
           <input type="submit" value="Delete" />
         </form>
+        <li>Number of Likes: {{likes}}
         <form method="post" enctype="multipart/form-data" action="/addtag">
           <label for="tag">Add tags ("tag,tag2,...") </label>
           <input type="text" name="tag" required='true'/>
